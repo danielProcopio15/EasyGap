@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Anotações — EASYgap{% endblock %}
+
+{% block content %}
+
+<!-- Cabeçalho -->
+<div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
+    <div>
+        <h1 class="text-2xl font-bold text-white">📋 Anotações</h1>
+        <p class="text-gray-500 text-sm mt-0.5">Todas as observações registradas durante as sessões, agrupadas por matéria.</p>
+    </div>
+
+    <!-- Filtro por tipo -->
+    <form method="get" class="flex items-center gap-2 flex-shrink-0">
+        <select name="tipo" onchange="this.form.submit()"
+                class="input w-auto text-sm">
+            <option value="">Todos os tipos</option>
+            {% for val, label in tipo_choices %}
+            <option value="{{ val }}" {% if tipo_filtro == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        {% if tipo_filtro %}
+        <a href="{% url 'anotacoes' %}" class="btn btn-ghost text-xs px-3">✕ Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if subjects_obs %}
+
+{% for subject, observacoes in subjects_obs %}
+<!-- Box da matéria -->
+<div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden mb-5">
+
+    <!-- Cabeçalho da matéria -->
+    <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <h2 class="font-bold text-white text-base">{{ subject.name }}</h2>
+            {% if subject.has_discursiva %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-900/70 text-purple-300 border border-purple-700">✍️ Discursiva</span>
+            {% endif %}
+            {% if subject.has_oral %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-900/70 text-amber-300 border border-amber-700">🎙️ Oral</span>
+            {% endif %}
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-xs bg-gray-800 text-gray-400 border border-gray-700 flex-shrink-0">
+            {{ observacoes|length }} anotaç{% if observacoes|length == 1 %}ão{% else %}ões{% endif %}
+        </span>
+    </div>
+
+    <!-- Lista de observações -->
+    <div class="divide-y divide-gray-800/60">
+        {% for obs in observacoes %}
+        <div class="px-5 py-4 flex gap-4">
+
+            <!-- Badge tipo -->
+            <div class="flex-shrink-0 pt-0.5">
+                {% if obs.type == 'duvida' %}
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-900/60 text-yellow-300 border border-yellow-700/60 whitespace-nowrap">❓ Dúvida</span>
+                {% elif obs.type == 'pesquisa' %}
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-900/60 text-blue-300 border border-blue-700/60 whitespace-nowrap">🔍 Pesquisa</span>
+                {% elif obs.type == 'resposta' %}
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-green-900/60 text-green-300 border border-green-700/60 whitespace-nowrap">✅ Resposta</span>
+                {% else %}
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-700/80 text-gray-300 border border-gray-600/60 whitespace-nowrap">📝 Observação</span>
+                {% endif %}
+            </div>
+
+            <!-- Texto + meta -->
+            <div class="flex-1 min-w-0">
+                <p class="text-gray-100 text-sm leading-relaxed">{{ obs.text }}</p>
+                <p class="text-gray-600 text-xs mt-1.5">
+                    {{ obs.created_at|date:"d/m/Y" }} às {{ obs.created_at|date:"H:i" }}
+                    &bull; sessão de {{ obs.session.date|date:"d/m/Y" }}
+                </p>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<!-- Estado vazio -->
+<div class="text-center py-20">
+    <p class="text-5xl mb-4">📭</p>
+    {% if tipo_filtro %}
+    <p class="text-gray-400 text-base font-medium">Nenhuma anotação do tipo selecionado.</p>
+    <a href="{% url 'anotacoes' %}" class="btn btn-ghost mt-4 text-sm">Ver todas</a>
+    {% else %}
+    <p class="text-gray-400 text-base font-medium">Nenhuma anotação registrada ainda.</p>
+    <p class="text-gray-600 text-sm mt-1">As observações que você registrar durante as sessões aparecerão aqui.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

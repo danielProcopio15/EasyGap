@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Cronogramas — EASYgap{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-white">Cronogramas semanais</h1>
+    <a href="{% url 'cronograma_novo' %}" class="btn btn-primary">+ Novo cronograma</a>
+</div>
+
+{% if planos %}
+<div class="flex flex-col gap-4">
+    {% for p in planos %}
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <p class="text-white font-semibold text-base">{{ p.name }}</p>
+            <p class="text-xs text-gray-500 mt-1">
+                Status:
+                <span class="{% if p.status == 'ativo' %}text-emerald-400{% elif p.status == 'arquivado' %}text-gray-500{% else %}text-yellow-400{% endif %} font-medium">
+                    {{ p.get_status_display }}
+                </span>
+                &nbsp;·&nbsp; {{ p.items.count }} matéria(s) configurada(s)
+            </p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+            {% if p.status != 'ativo' %}
+            <form method="post" action="{% url 'cronograma_ativar' p.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success text-xs px-3 py-1">Ativar</button>
+            </form>
+            {% endif %}
+            <a href="{% url 'cronograma_editar' p.pk %}" class="btn btn-ghost text-xs px-3 py-1">Editar</a>
+            <a href="{% url 'cronograma_remover' p.pk %}" class="btn btn-danger text-xs px-3 py-1">Remover</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20 text-gray-600">
+    <p class="text-5xl mb-4">📅</p>
+    <p class="text-lg">Nenhum cronograma criado ainda.</p>
+    <a href="{% url 'cronograma_novo' %}" class="btn btn-primary mt-6 inline-block">Criar primeiro cronograma</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EASYgap{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .input {
+            display: block; width: 100%;
+            background: #1f2937; color: #f3f4f6;
+            border: 1px solid #374151; border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem; font-size: 0.875rem;
+            outline: none;
+        }
+        .input:focus { border-color: #6366f1; }
+        select.input option { background: #1f2937; }
+        .btn { display: inline-flex; align-items: center; justify-content: center;
+               padding: 0.5rem 1.25rem; border-radius: 0.5rem; font-size: 0.875rem;
+               font-weight: 600; cursor: pointer; transition: opacity .15s; }
+        .btn:hover { opacity: .85; }
+        .btn-primary  { background: #6366f1; color: #fff; }
+        .btn-danger   { background: #ef4444; color: #fff; }
+        .btn-ghost    { background: #374151; color: #d1d5db; }
+        .btn-success  { background: #10b981; color: #fff; }
+        label { display: block; font-size: 0.75rem; color: #9ca3af;
+                text-transform: uppercase; letter-spacing: .05em; margin-bottom: .25rem; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+
+    <nav class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+        <a href="{% url 'home' %}" class="text-xl font-bold text-indigo-400 tracking-wide">EASY<span class="text-white">gap</span></a>
+        <div class="flex gap-4 text-sm">
+            <a href="{% url 'agenda_diaria' %}"   class="text-gray-400 hover:text-indigo-400 transition">Agenda</a>
+            <a href="{% url 'materia_lista' %}"    class="text-gray-400 hover:text-indigo-400 transition">Matérias</a>
+            <a href="{% url 'cronograma_lista' %}" class="text-gray-400 hover:text-indigo-400 transition">Cronogramas</a>
+            <a href="{% url 'anotacoes' %}"        class="text-gray-400 hover:text-indigo-400 transition">Anotações</a>
+            <a href="{% url 'produtividade' %}"    class="text-gray-400 hover:text-indigo-400 transition">Produtividade</a>
+            <a href="{% url 'rendimentos' %}"      class="text-gray-400 hover:text-indigo-400 transition">Rendimentos</a>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-6 py-10">
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+</html>

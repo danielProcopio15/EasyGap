@@ -1,0 +1,17 @@
+# Ambiente virtual
+venv/
+env/
+.env
+
+# Django
+*.pyc
+__pycache__/
+db.sqlite3
+media/
+
+# VS Code
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db

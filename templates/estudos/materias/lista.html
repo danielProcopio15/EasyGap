@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Matérias — EASYgap{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-white">Matérias</h1>
+    <a href="{% url 'materia_nova' %}" class="btn btn-primary">+ Nova matéria</a>
+</div>
+
+{% if materias_info %}
+<div class="overflow-x-auto rounded-xl border border-gray-800">
+    <table class="w-full text-sm text-left">
+        <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+            <tr>
+                <th class="px-5 py-3">Nome</th>
+                <th class="px-5 py-3">Prioridade</th>
+                <th class="px-5 py-3">Dificuldade</th>
+                <th class="px-5 py-3">Último estudo</th>
+                <th class="px-5 py-3">Status</th>
+                <th class="px-5 py-3">Ações</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+            {% for entry in materias_info %}
+            {% with m=entry.materia %}
+            <tr class="hover:bg-gray-800 transition">
+                <td class="px-5 py-3">
+                    <p class="font-medium text-white">{{ m.name }}</p>
+                    <div class="flex gap-1.5 mt-1">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold
+                            {% if m.has_discursiva %}bg-purple-900/70 text-purple-300 border border-purple-700
+                            {% else %}bg-gray-800 text-gray-500 border border-gray-700{% endif %}">
+                            ✍️ Discursiva: {% if m.has_discursiva %}Sim{% else %}Não{% endif %}
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold
+                            {% if m.has_oral %}bg-amber-900/70 text-amber-300 border border-amber-700
+                            {% else %}bg-gray-800 text-gray-500 border border-gray-700{% endif %}">
+                            🎙️ Oral: {% if m.has_oral %}Sim{% else %}Não{% endif %}
+                        </span>
+                    </div>
+                </td>
+
+                <!-- Prioridade com badge colorido + peso -->
+                <td class="px-5 py-3">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
+                        {% if m.priority == 'alta' %}bg-orange-900/60 text-orange-300 border border-orange-800
+                        {% elif m.priority == 'media' %}bg-yellow-900/60 text-yellow-300 border border-yellow-800
+                        {% else %}bg-gray-700 text-gray-400 border border-gray-600{% endif %}">
+                        {% if m.priority == 'alta' %}🟠
+                        {% elif m.priority == 'media' %}🟡
+                        {% else %}⚪{% endif %}
+                        {{ m.get_priority_display }}
+                        <span class="opacity-60">· p{{ m.weight }}</span>
+                    </span>
+                </td>
+
+                <td class="px-5 py-3 text-gray-300">{{ m.get_difficulty_display }}</td>
+
+                <!-- Última data estudada -->
+                <td class="px-5 py-3">
+                    {% if entry.last_studied %}
+                        <span class="text-gray-300">{{ entry.last_studied|date:"d/m/Y" }}</span>
+                        <br>
+                        {% if entry.days_since == 0 %}
+                            <span class="text-xs text-green-400">hoje</span>
+                        {% elif entry.days_since == 1 %}
+                            <span class="text-xs text-yellow-400">ontem</span>
+                        {% elif entry.days_since <= 7 %}
+                            <span class="text-xs text-yellow-500">{{ entry.days_since }} dias atrás</span>
+                        {% else %}
+                            <span class="text-xs text-red-400">{{ entry.days_since }} dias atrás</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-xs text-orange-400">Nunca estudada</span>
+                    {% endif %}
+                </td>
+
+                <td class="px-5 py-3">
+                    <span class="px-2 py-0.5 rounded text-xs
+                        {% if m.status == 'ativa' %}text-green-400
+                        {% elif m.status == 'pausada' %}text-yellow-400
+                        {% else %}text-gray-500{% endif %}">
+                        {{ m.get_status_display }}
+                    </span>
+                </td>
+
+                <td class="px-5 py-3 flex gap-2">
+                    <a href="{% url 'materia_editar' m.pk %}" class="btn btn-ghost text-xs px-3 py-1">Editar</a>
+                    <a href="{% url 'materia_remover' m.pk %}" class="btn btn-danger text-xs px-3 py-1">Remover</a>
+                </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-20 text-gray-600">
+    <p class="text-5xl mb-4">📚</p>
+    <p class="text-lg">Nenhuma matéria cadastrada ainda.</p>
+    <a href="{% url 'materia_nova' %}" class="btn btn-primary mt-6 inline-block">Cadastrar primeira matéria</a>
+</div>
+{% endif %}
+{% endblock %}

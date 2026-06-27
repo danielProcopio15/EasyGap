@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Rendimentos — EASYgap{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Rendimentos</h1>
+    <p class="text-gray-500 text-sm mt-1">Análise de produtividade e procrastinação</p>
+</div>
+
+<!-- Retrospectos semanais -->
+<div class="mb-10">
+    <h2 class="text-base font-semibold text-gray-300 uppercase tracking-widest mb-4">Retrospectos semanais</h2>
+    {% if semanas %}
+    <div class="overflow-x-auto rounded-xl border border-gray-800">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Semana</th>
+                    <th class="px-4 py-3">Dias</th>
+                    <th class="px-4 py-3">Líquido (min)</th>
+                    <th class="px-4 py-3">Eficiência</th>
+                    <th class="px-4 py-3">Procrastinação</th>
+                    <th class="px-4 py-3">Pausas</th>
+                    <th class="px-4 py-3">Mais estudada</th>
+                    <th class="px-4 py-3">Gráfico</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                {% for s in semanas %}
+                <tr class="hover:bg-gray-800 transition">
+                    <td class="px-4 py-3 text-white font-medium">{{ s.week_start }} → {{ s.week_end }}</td>
+                    <td class="px-4 py-3 text-indigo-400 font-bold">{{ s.study_days }}</td>
+                    <td class="px-4 py-3 text-emerald-400 font-bold">{{ s.net_minutes }}</td>
+                    <td class="px-4 py-3">
+                        <span class="{% if s.efficiency >= 80 %}text-emerald-400{% elif s.efficiency >= 50 %}text-yellow-400{% else %}text-red-400{% endif %} font-bold">
+                            {{ s.efficiency }}%
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-red-400 font-bold">{{ s.procrastination_index }}%</td>
+                    <td class="px-4 py-3 text-gray-300">{{ s.total_pauses }}</td>
+                    <td class="px-4 py-3 text-gray-300">{{ s.most_studied_subject|default:"—" }}</td>
+                    <td class="px-4 py-3">
+                        {% if s.chart_path %}
+                            <a href="/{{ s.chart_path }}" target="_blank" class="text-indigo-400 hover:underline text-xs">Ver gráfico</a>
+                        {% else %}
+                            <span class="text-gray-600 text-xs">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-10 text-gray-600 border border-gray-800 rounded-xl">
+        <p>Nenhum retrospecto semanal gerado ainda.</p>
+        <p class="text-xs mt-2">Execute: <code class="bg-gray-800 px-2 py-0.5 rounded text-gray-400">python manage.py generate_reports --weekly</code></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Retrospectos mensais -->
+<div class="mb-10">
+    <h2 class="text-base font-semibold text-gray-300 uppercase tracking-widest mb-4">Retrospectos mensais</h2>
+    {% if meses %}
+    <div class="overflow-x-auto rounded-xl border border-gray-800">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Mês</th>
+                    <th class="px-4 py-3">Dias</th>
+                    <th class="px-4 py-3">Líquido (min)</th>
+                    <th class="px-4 py-3">Eficiência</th>
+                    <th class="px-4 py-3">Procrastinação</th>
+                    <th class="px-4 py-3">Metas atingidas</th>
+                    <th class="px-4 py-3">Gráfico</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                {% for m in meses %}
+                <tr class="hover:bg-gray-800 transition">
+                    <td class="px-4 py-3 text-white font-medium">{{ m.month|stringformat:"02d" }}/{{ m.year }}</td>
+                    <td class="px-4 py-3 text-indigo-400 font-bold">{{ m.study_days }}</td>
+                    <td class="px-4 py-3 text-emerald-400 font-bold">{{ m.net_minutes }}</td>
+                    <td class="px-4 py-3">
+                        <span class="{% if m.efficiency >= 80 %}text-emerald-400{% elif m.efficiency >= 50 %}text-yellow-400{% else %}text-red-400{% endif %} font-bold">
+                            {{ m.efficiency }}%
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-red-400 font-bold">{{ m.procrastination_index }}%</td>
+                    <td class="px-4 py-3 text-yellow-400 font-bold">{{ m.goals_hit }}</td>
+                    <td class="px-4 py-3">
+                        {% if m.chart_path %}
+                            <a href="/{{ m.chart_path }}" target="_blank" class="text-indigo-400 hover:underline text-xs">Ver gráfico</a>
+                        {% else %}
+                            <span class="text-gray-600 text-xs">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-10 text-gray-600 border border-gray-800 rounded-xl">
+        <p>Nenhum retrospecto mensal gerado ainda.</p>
+        <p class="text-xs mt-2">Execute: <code class="bg-gray-800 px-2 py-0.5 rounded text-gray-400">python manage.py generate_reports --monthly</code></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pausas por matéria -->
+<div class="mb-10">
+    <h2 class="text-base font-semibold text-gray-300 uppercase tracking-widest mb-4">Pausas por matéria</h2>
+    {% if pausas_por_materia %}
+    <div class="overflow-x-auto rounded-xl border border-gray-800">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Matéria</th>
+                    <th class="px-4 py-3">Total de pausas</th>
+                    <th class="px-4 py-3">Minutos perdidos</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                {% for p in pausas_por_materia %}
+                <tr class="hover:bg-gray-800 transition">
+                    <td class="px-4 py-3 text-white font-medium">{{ p.subject__name }}</td>
+                    <td class="px-4 py-3 text-yellow-400 font-bold">{{ p.total_pausas }}</td>
+                    <td class="px-4 py-3 text-red-400 font-bold">{{ p.total_minutos|default:"0" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-10 text-gray-600 border border-gray-800 rounded-xl">
+        <p>Nenhuma pausa registrada ainda.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Sessões recentes -->
+<div>
+    <h2 class="text-base font-semibold text-gray-300 uppercase tracking-widest mb-4">Sessões recentes</h2>
+    {% if sessoes %}
+    <div class="overflow-x-auto rounded-xl border border-gray-800">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Data</th>
+                    <th class="px-4 py-3">Matéria</th>
+                    <th class="px-4 py-3">Bruto (min)</th>
+                    <th class="px-4 py-3">Líquido (min)</th>
+                    <th class="px-4 py-3">Eficiência</th>
+                    <th class="px-4 py-3">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                {% for s in sessoes %}
+                <tr class="hover:bg-gray-800 transition">
+                    <td class="px-4 py-3 text-gray-300">{{ s.date }}</td>
+                    <td class="px-4 py-3 text-white font-medium">{{ s.subject.name }}</td>
+                    <td class="px-4 py-3 text-gray-300">{{ s.gross_minutes }}</td>
+                    <td class="px-4 py-3 text-emerald-400 font-bold">{{ s.net_minutes }}</td>
+                    <td class="px-4 py-3">
+                        <span class="{% if s.efficiency >= 80 %}text-emerald-400{% elif s.efficiency >= 50 %}text-yellow-400{% else %}text-red-400{% endif %} font-bold">
+                            {{ s.efficiency }}%
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-300">{{ s.get_status_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-10 text-gray-600 border border-gray-800 rounded-xl">
+        <p>Nenhuma sessão registrada ainda.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

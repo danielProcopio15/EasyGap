@@ -1,0 +1,594 @@
+{% extends "base.html" %}
+{% block title %}{{ sessao.subject.name }} — Sessão — EASYgap{% endblock %}
+
+{% block content %}
+
+<!-- Cabeçalho da sessão -->
+<div class="flex items-start justify-between mb-6 gap-4">
+    <div>
+        <a href="{% url 'agenda_diaria' %}" class="text-gray-500 hover:text-indigo-400 text-sm transition">← Agenda</a>
+        <h1 class="text-xl sm:text-2xl font-bold text-white mt-1">{{ sessao.subject.name }}</h1>
+        <p class="text-gray-500 text-xs mt-0.5">
+            {{ sessao.date|date:"d/m/Y" }}
+            {% if sessao.plan_item %} &bull; {{ sessao.plan_item.plan.name }}{% endif %}
+            &bull; Planejado: {{ sessao.planned_minutes }} min
+        </p>
+    </div>
+    <div class="flex items-center gap-2 flex-shrink-0">
+        {% if sessao.status == 'em_andamento' %}
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-900/60 text-indigo-300 border border-indigo-700 animate-pulse">● Em andamento</span>
+        {% elif sessao.status == 'concluida' %}
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-900/60 text-green-300 border border-green-800">✓ Concluída</span>
+        {% elif sessao.status == 'pulada' %}
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-700 text-gray-400">Pulada</span>
+        {% else %}
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-900/60 text-yellow-300 border border-yellow-800">Encerrada</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- CERTAMES -->
+{% if sessao.subject.certames %}
+<div class="bg-gradient-to-r from-yellow-950/80 to-amber-950/60 border border-yellow-700/50 rounded-xl px-5 py-4 mb-5 flex flex-wrap items-center gap-3">
+    <span class="text-yellow-400 font-bold text-xs uppercase tracking-widest flex items-center gap-1 flex-shrink-0">🏆 Certames</span>
+    <div class="flex flex-wrap gap-2">
+        {% for certame in sessao.subject.certames_list %}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-yellow-900/70 text-yellow-200 border border-yellow-600/60 shadow-sm">
+            {{ certame }}
+        </span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ÁREA DO TIMER -->
+<div id="timer-section" class="bg-gray-900 border border-gray-800 rounded-2xl p-8 mb-6 text-center">
+    <!-- Badges: Discursiva / Oral -->
+    <div class="flex justify-center gap-2 mb-4">
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold
+            {% if sessao.subject.has_discursiva %}bg-purple-900/70 text-purple-300 border border-purple-700
+            {% else %}bg-gray-800 text-gray-500 border border-gray-700{% endif %}">
+            ✍️ Discursiva: {% if sessao.subject.has_discursiva %}Sim{% else %}Não{% endif %}
+        </span>
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold
+            {% if sessao.subject.has_oral %}bg-amber-900/70 text-amber-300 border border-amber-700
+            {% else %}bg-gray-800 text-gray-500 border border-gray-700{% endif %}">
+            🎙️ Oral: {% if sessao.subject.has_oral %}Sim{% else %}Não{% endif %}
+        </span>
+    </div>
+    <!-- Timer display -->
+    <p class="text-xs text-gray-500 uppercase tracking-widest mb-3" id="timer-label">
+        {% if sessao.status == 'em_andamento' %}Tempo decorrido{% else %}Sessão encerrada{% endif %}
+    </p>
+    <div id="timer-display"
+         class="text-7xl sm:text-8xl font-mono font-bold tracking-tight transition-colors duration-300
+                {% if sessao.status == 'em_andamento' %}text-green-400{% else %}text-gray-500{% endif %}">
+        <span id="timer-text">--:--</span>
+    </div>
+
+    <!-- Barra de progresso -->
+    {% if sessao.planned_minutes %}
+    <div class="mt-4 bg-gray-800 rounded-full h-2 w-full max-w-md mx-auto overflow-hidden">
+        <div id="progress-bar"
+             class="h-2 rounded-full transition-all duration-1000 bg-indigo-500"
+             style="width: 100%"></div>
+    </div>
+    {% endif %}
+
+    <!-- Estado pausa -->
+    <div id="pause-indicator" class="mt-3 {% if not is_paused %}hidden{% endif %}">
+        <span class="text-yellow-400 text-sm font-medium">⏸ Sessão pausada</span>
+    </div>
+
+    <!-- Controles (visíveis apenas enquanto em andamento) -->
+    {% if sessao.status == 'em_andamento' %}
+    <div class="flex flex-wrap justify-center gap-3 mt-6" id="controls">
+        <button id="btn-pause" onclick="togglePause()"
+                class="btn {% if is_paused %}btn-success{% else %}btn-ghost{% endif %} min-w-28">
+            {% if is_paused %}▶ Retomar{% else %}⏸ Pausar{% endif %}
+        </button>
+        <button onclick="confirmSkip()" class="btn btn-ghost min-w-28">⏭ Pular</button>
+        <button onclick="confirmEnd('encerrada')" class="btn btn-danger min-w-28">⏹ Encerrar</button>
+    </div>
+    {% else %}
+    <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a href="{% url 'agenda_diaria' %}" class="btn btn-ghost">← Agenda</a>
+        {% if proximo_subject_url %}
+        <a href="{{ proximo_subject_url }}" class="btn btn-primary">▶ Próxima: {{ proximo_subject.name }}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Toast notifications -->
+    <div id="toast" class="hidden mt-4 px-4 py-2 rounded-lg text-sm font-medium"></div>
+</div>
+
+<!-- FILA GERAL DE MATÉRIAS -->
+{% if fila_geral %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6">
+    <button onclick="toggleFila()" class="w-full px-5 py-4 flex items-center justify-between text-left">
+        <div class="flex items-center gap-2">
+            <h2 class="font-semibold text-white text-sm">📋 Fila de prioridade — todas as matérias</h2>
+            <span class="px-2 py-0.5 rounded-full text-xs bg-gray-800 text-gray-400 border border-gray-700">{{ fila_geral|length }}</span>
+        </div>
+        <span id="fila-chevron" class="text-gray-500 text-xs transition-transform duration-200">▼ expandir</span>
+    </button>
+    <div id="fila-panel" class="hidden border-t border-gray-800">
+        <div class="divide-y divide-gray-800/60">
+            {% for entry in fila_geral %}
+            <a href="{% url 'iniciar_sessao_subject' subject_pk=entry.subject.pk %}"
+               class="flex items-center gap-3 px-5 py-3 transition hover:bg-gray-800/60
+                      {% if entry.subject.pk == sessao.subject.pk %}bg-indigo-950/40 pointer-events-none{% endif %}">
+
+                <!-- Posição -->
+                <span class="w-6 text-center text-xs font-bold flex-shrink-0
+                             {% if entry.order == 1 %}text-yellow-400
+                             {% elif entry.order == 2 %}text-gray-300
+                             {% elif entry.order == 3 %}text-amber-600
+                             {% else %}text-gray-600{% endif %}">
+                    {{ entry.order }}
+                </span>
+
+                <!-- Nome da matéria -->
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate
+                              {% if entry.subject.pk == sessao.subject.pk %}text-indigo-300{% else %}text-white{% endif %}">
+                        {{ entry.subject.name }}
+                        {% if entry.subject.pk == sessao.subject.pk %}
+                        <span class="text-xs font-normal text-indigo-400/80 ml-1">← atual</span>
+                        {% endif %}
+                    </p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-gray-600 text-xs">Peso {{ entry.subject.weight }}</span>
+                        {% if entry.subject.has_discursiva %}<span class="text-xs font-bold text-purple-400">✍️ Discursiva</span>{% endif %}
+                        {% if entry.subject.has_oral %}<span class="text-xs font-bold text-amber-400">🎙️ Oral</span>{% endif %}
+                        {% if entry.is_stale %}
+                        <span class="text-xs text-red-400 font-medium">● atrasada</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Última data estudada -->
+                <div class="text-right flex-shrink-0">
+                    {% if entry.last_studied %}
+                        <p class="text-xs text-gray-300">{{ entry.last_studied|date:"d/m/Y" }}</p>
+                        {% if entry.days_since == 0 %}
+                            <p class="text-xs text-green-400">hoje</p>
+                        {% elif entry.days_since == 1 %}
+                            <p class="text-xs text-yellow-400">ontem</p>
+                        {% elif entry.days_since <= 7 %}
+                            <p class="text-xs text-yellow-500">{{ entry.days_since }} dias atrás</p>
+                        {% else %}
+                            <p class="text-xs text-red-400">{{ entry.days_since }} dias atrás</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-xs text-gray-600 italic">nunca estudada</p>
+                    {% endif %}
+                </div>
+
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ESTATÍSTICAS DA SESSÃO -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-xs text-gray-500 mb-1">Bruto</p>
+        <p id="stat-gross" class="text-xl font-bold text-white">
+            {% if sessao.gross_minutes %}{{ sessao.gross_minutes }} min{% else %}—{% endif %}
+        </p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-xs text-gray-500 mb-1">Líquido</p>
+        <p id="stat-net" class="text-xl font-bold text-indigo-400">
+            {% if sessao.net_minutes %}{{ sessao.net_minutes }} min{% else %}—{% endif %}
+        </p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-xs text-gray-500 mb-1">Pausas</p>
+        <p id="stat-pauses" class="text-xl font-bold text-yellow-400">{{ pausas|length }}</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-xs text-gray-500 mb-1">Eficiência</p>
+        <p id="stat-efficiency" class="text-xl font-bold text-green-400">
+            {% if sessao.gross_minutes %}{{ sessao.efficiency }}%{% else %}—{% endif %}
+        </p>
+    </div>
+</div>
+
+<!-- PAINEL DUPLO: Conteúdo | Observações | Notas Gerais -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+
+    <!-- CONTEÚDO ESTUDADO -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-800">
+            <h2 class="font-semibold text-white text-sm">📚 Conteúdo estudado</h2>
+        </div>
+        {% if sessao.status == 'em_andamento' %}
+        <div class="p-5 border-b border-gray-800">
+            <div id="conteudo-error" class="hidden text-red-400 text-xs mb-2"></div>
+            <input id="conteudo-desc" type="text" placeholder="O que você estudou?" class="input mb-2">
+            <div class="flex gap-2 items-center">
+                <input id="conteudo-min" type="number" min="0" placeholder="Min dedicados" class="input flex-1">
+                <button onclick="addConteudo()" class="btn btn-success text-xs px-4 flex-shrink-0">+ Salvar</button>
+            </div>
+        </div>
+        {% endif %}
+        <div class="p-3 max-h-56 overflow-y-auto" id="conteudo-list">
+            {% for c in conteudos %}
+            <div class="flex items-start gap-2 py-2 border-b border-gray-800/60 last:border-0">
+                <div class="flex-1">
+                    <p class="text-white text-sm">{{ c.description }}</p>
+                    <p class="text-gray-500 text-xs">{{ c.subject.name }}{% if c.minutes_spent %} · {{ c.minutes_spent }} min{% endif %}</p>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-gray-600 text-sm text-center py-4" id="conteudo-empty">Nenhum conteúdo registrado ainda</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- OBSERVAÇÕES -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-800">
+            <h2 class="font-semibold text-white text-sm">💬 Observações</h2>
+        </div>
+        {% if sessao.status == 'em_andamento' %}
+        <div class="p-5 border-b border-gray-800">
+            <div id="obs-error" class="hidden text-red-400 text-xs mb-2"></div>
+            <select id="obs-tipo" class="input mb-2">
+                {% for val, label in tipos_obs %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <textarea id="obs-texto" rows="2" placeholder="Escreva sua observação..." class="input mb-2 resize-none"></textarea>
+            <button onclick="addObservacao()" class="btn btn-primary text-xs w-full">+ Registrar observação</button>
+        </div>
+        {% endif %}
+        <div class="p-3 max-h-56 overflow-y-auto" id="obs-list">
+            {% for o in observacoes %}
+            <div class="py-2 border-b border-gray-800/60 last:border-0">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="px-2 py-0.5 rounded text-xs font-semibold
+                        {% if o.type == 'duvida' %}bg-yellow-900/60 text-yellow-300
+                        {% elif o.type == 'pesquisa' %}bg-blue-900/60 text-blue-300
+                        {% elif o.type == 'resposta' %}bg-green-900/60 text-green-300
+                        {% else %}bg-gray-700 text-gray-300{% endif %}">
+                        {{ o.get_type_display }}
+                    </span>
+                    <span class="text-gray-600 text-xs">{{ o.created_at|date:"H:i" }}</span>
+                </div>
+                <p class="text-gray-300 text-sm">{{ o.text }}</p>
+            </div>
+            {% empty %}
+            <p class="text-gray-600 text-sm text-center py-4" id="obs-empty">Nenhuma observação registrada</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- NOTAS GERAIS DA MATÉRIA -->
+<div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6">
+    <button onclick="toggleNotas()" class="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 class="font-semibold text-white text-sm">📝 Notas gerais de {{ sessao.subject.name }}</h2>
+        <span id="notas-chevron" class="text-gray-500 text-xs">▼ expandir</span>
+    </button>
+    <div id="notas-panel" class="hidden border-t border-gray-800 p-5">
+        <textarea id="notas-texto" rows="4"
+                  class="input w-full mb-3 resize-none"
+                  placeholder="Anotações gerais sobre esta matéria...">{{ sessao.subject.notes }}</textarea>
+        <div class="flex items-center gap-3">
+            <button onclick="salvarNotas()" class="btn btn-primary text-xs px-4">💾 Salvar notas</button>
+            <span id="notas-msg" class="text-green-400 text-xs hidden">Salvo!</span>
+        </div>
+    </div>
+</div>
+
+<!-- HISTÓRICO DE PAUSAS -->
+{% if pausas %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6">
+    <div class="px-5 py-4 border-b border-gray-800">
+        <h2 class="font-semibold text-white text-sm">⏸ Histórico de pausas ({{ pausas|length }})</h2>
+    </div>
+    <div class="p-3">
+        <table class="w-full text-xs text-gray-400">
+            <thead><tr class="text-gray-600 border-b border-gray-800">
+                <th class="text-left py-2 font-normal">Início</th>
+                <th class="text-left py-2 font-normal">Fim</th>
+                <th class="text-right py-2 font-normal">Duração</th>
+            </tr></thead>
+            <tbody id="pausa-list">
+            {% for p in pausas %}
+            <tr class="border-b border-gray-800/40 last:border-0">
+                <td class="py-2">{{ p.started_at|date:"H:i:s" }}</td>
+                <td class="py-2">{% if p.ended_at %}{{ p.ended_at|date:"H:i:s" }}{% else %}<span class="text-yellow-500">Em pausa</span>{% endif %}</td>
+                <td class="py-2 text-right">{{ p.duration_minutes }} min</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Próxima matéria na fila -->
+{% if proximo_subject and sessao.status == 'em_andamento' %}
+<div class="bg-gray-900 border border-gray-700 rounded-xl p-5 flex items-center justify-between">
+    <div>
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Próxima na fila de prioridade</p>
+        <p class="text-white font-bold">{{ proximo_subject.name }}</p>
+        <p class="text-gray-500 text-xs">{{ proximo_subject.default_minutes }} min · Peso {{ proximo_subject.weight }}</p>
+    </div>
+    <button onclick="confirmSkip()" class="btn btn-ghost text-xs px-4">⏭ Pular para ela</button>
+</div>
+{% endif %}
+
+<!-- ───────────────────────── JavaScript ───────────────────────── -->
+<script>
+const SESSION_PK = {{ sessao.pk }};
+const SUBJECT_PK = {{ sessao.subject.pk }};
+const PLANNED_SECONDS = {{ sessao.planned_minutes }} * 60;
+const IS_ACTIVE = '{{ sessao.status }}' === 'em_andamento';
+const PROXIMO_URL = '{{ proximo_subject_url|default:"" }}';
+const PROXIMO_NOME = '{{ proximo_subject.name|default:""|escapejs }}';
+const AGENDA_URL = '{% url "agenda_diaria" %}';
+
+let elapsedSeconds = PLANNED_SECONDS - {{ remaining_seconds }};
+let isPaused = {{ is_paused|yesno:"true,false" }};
+let timerInterval = null;
+let pauseCount = {{ pausas|length }};
+
+// ── Helpers ──────────────────────────────────────────────────────
+function getCsrf() {
+    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+async function api(url, data = {}) {
+    const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify(data),
+    });
+    return r.json();
+}
+
+function showToast(msg, type = 'info') {
+    const t = document.getElementById('toast');
+    t.className = 'mt-4 px-4 py-2 rounded-lg text-sm font-medium ' +
+        (type === 'success' ? 'bg-green-900/70 text-green-300'
+       : type === 'danger'  ? 'bg-red-900/70 text-red-300'
+       : 'bg-gray-800 text-gray-300');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    clearTimeout(t._to);
+    t._to = setTimeout(() => t.classList.add('hidden'), 4000);
+}
+
+// ── Timer ─────────────────────────────────────────────────────────
+function fmtTime(sec) {
+    const s = Math.max(0, sec);
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+}
+
+function updateTimerDisplay() {
+    document.getElementById('timer-text').textContent = fmtTime(elapsedSeconds);
+    const pct = PLANNED_SECONDS > 0 ? elapsedSeconds / PLANNED_SECONDS : 0;
+    const td = document.getElementById('timer-display');
+    if (isPaused) {
+        td.className = td.className.replace(/text-\w+-\d+/g, 'text-yellow-400');
+    } else if (pct < 0.8) {
+        td.className = td.className.replace(/text-\w+-\d+/g, 'text-green-400');
+    } else if (pct < 1.0) {
+        td.className = td.className.replace(/text-\w+-\d+/g, 'text-yellow-400');
+    } else {
+        td.className = td.className.replace(/text-\w+-\d+/g, 'text-red-400');
+    }
+    // barra de progresso
+    const bar = document.getElementById('progress-bar');
+    if (bar && PLANNED_SECONDS > 0) {
+        bar.style.width = Math.min(100, Math.round(pct * 100)) + '%';
+        bar.className = bar.className.replace(/bg-\w+-\d+/g,
+            pct < 0.8 ? 'bg-indigo-500' : pct < 1.0 ? 'bg-yellow-500' : 'bg-red-500');
+    }
+}
+
+function tick() {
+    if (isPaused || !IS_ACTIVE) return;
+    elapsedSeconds++;
+    updateTimerDisplay();
+    if (elapsedSeconds === PLANNED_SECONDS) onPlannedTimeReached();
+}
+
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(tick, 1000);
+}
+
+function onPlannedTimeReached() {
+    showToast('⏰ Tempo planejado atingido! Continue ou encerre a sessão.', 'info');
+}
+
+// ── Controles ────────────────────────────────────────────────────
+async function togglePause() {
+    if (isPaused) {
+        const data = await api(`/sessao/${SESSION_PK}/retomar/`);
+        if (data.status === 'resumed') {
+            isPaused = false;
+            document.getElementById('pause-indicator').classList.add('hidden');
+            document.getElementById('btn-pause').textContent = '⏸ Pausar';
+            document.getElementById('btn-pause').className = 'btn btn-ghost min-w-28';
+            showToast('Sessão retomada 💪', 'success');
+        }
+    } else {
+        const data = await api(`/sessao/${SESSION_PK}/pausar/`);
+        if (data.status === 'paused' || data.status === 'already_paused') {
+            isPaused = true;
+            document.getElementById('pause-indicator').classList.remove('hidden');
+            document.getElementById('btn-pause').textContent = '▶ Retomar';
+            document.getElementById('btn-pause').className = 'btn btn-success min-w-28';
+            pauseCount++;
+            document.getElementById('stat-pauses').textContent = pauseCount;
+            showToast('Sessão pausada', 'info');
+        }
+    }
+    updateTimerDisplay();
+}
+
+async function confirmEnd(status) {
+    if (!confirm('Encerrar esta sessão agora?')) return;
+    clearInterval(timerInterval);
+    const data = await api(`/sessao/${SESSION_PK}/encerrar/`, { status });
+    updateStats(data);
+    const nextUrl = data.next_subject_url || PROXIMO_URL;
+    const nextNome = data.next_subject_name || PROXIMO_NOME;
+    const nextBtn = nextUrl ? `<a href="${nextUrl}" class="btn btn-primary">▶ Próxima: ${escHtml(nextNome)}</a>` : '';
+    document.getElementById('controls').innerHTML =
+        `<a href="${AGENDA_URL}" class="btn btn-ghost">← Agenda</a>${nextBtn}`;
+    document.getElementById('timer-label').textContent = 'Sessão encerrada';
+    document.getElementById('timer-display').className =
+        document.getElementById('timer-display').className.replace(/text-\w+-\d+/g, 'text-gray-500');
+    showToast('Sessão encerrada. Bom descanso!', 'info');
+}
+
+async function confirmSkip() {
+    if (!confirm('Pular esta matéria e avançar?')) return;
+    clearInterval(timerInterval);
+    const data = await api(`/sessao/${SESSION_PK}/pular/`);
+    showToast('Pulando...', 'info');
+    setTimeout(() => {
+        const dest = data.next_subject_url || data.agenda_url || AGENDA_URL;
+        window.location.href = dest;
+    }, 1200);
+}
+
+function updateStats(data) {
+    if (data.gross_minutes !== undefined) {
+        document.getElementById('stat-gross').textContent = data.gross_minutes + ' min';
+        document.getElementById('stat-net').textContent = data.net_minutes + ' min';
+        document.getElementById('stat-efficiency').textContent = data.efficiency + '%';
+    }
+}
+
+// ── Conteúdo ─────────────────────────────────────────────────────
+async function addConteudo() {
+    const desc = document.getElementById('conteudo-desc').value.trim();
+    const mins = document.getElementById('conteudo-min').value || 0;
+    const errEl = document.getElementById('conteudo-error');
+    if (!desc) {
+        errEl.textContent = 'Informe o conteúdo estudado.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    errEl.classList.add('hidden');
+    const data = await api(`/sessao/${SESSION_PK}/conteudo/`, { description: desc, minutes_spent: parseInt(mins) });
+    if (data.error) {
+        errEl.textContent = data.error;
+        errEl.classList.remove('hidden');
+        return;
+    }
+    // Adiciona na lista
+    const empty = document.getElementById('conteudo-empty');
+    if (empty) empty.remove();
+    const list = document.getElementById('conteudo-list');
+    const row = document.createElement('div');
+    row.className = 'flex items-start gap-2 py-2 border-b border-gray-800/60';
+    row.innerHTML = `<div class="flex-1">
+        <p class="text-white text-sm">${escHtml(data.description)}</p>
+        <p class="text-gray-500 text-xs">${escHtml(data.subject)}${data.minutes_spent ? ' · ' + data.minutes_spent + ' min' : ''}</p>
+    </div>`;
+    list.prepend(row);
+    document.getElementById('conteudo-desc').value = '';
+    document.getElementById('conteudo-min').value = '';
+    showToast('Conteúdo registrado!', 'success');
+}
+
+// ── Observações ───────────────────────────────────────────────────
+async function addObservacao() {
+    const text = document.getElementById('obs-texto').value.trim();
+    const tipo = document.getElementById('obs-tipo').value;
+    const errEl = document.getElementById('obs-error');
+    if (!text) {
+        errEl.textContent = 'O texto da observação não pode ser vazio.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    errEl.classList.add('hidden');
+    const data = await api(`/sessao/${SESSION_PK}/observacao/`, { text, type: tipo });
+    if (data.error) {
+        errEl.textContent = data.error;
+        errEl.classList.remove('hidden');
+        return;
+    }
+    // Adiciona na lista
+    const empty = document.getElementById('obs-empty');
+    if (empty) empty.remove();
+    const list = document.getElementById('obs-list');
+    const typeColors = {
+        duvida:      'bg-yellow-900/60 text-yellow-300',
+        pesquisa:    'bg-blue-900/60 text-blue-300',
+        resposta:    'bg-green-900/60 text-green-300',
+        observacao:  'bg-gray-700 text-gray-300',
+    };
+    const color = typeColors[data.type] || 'bg-gray-700 text-gray-300';
+    const row = document.createElement('div');
+    row.className = 'py-2 border-b border-gray-800/60 last:border-0';
+    row.innerHTML = `<div class="flex items-center gap-2 mb-1">
+        <span class="px-2 py-0.5 rounded text-xs font-semibold ${color}">${escHtml(data.type_display)}</span>
+        <span class="text-gray-600 text-xs">${escHtml(data.created_at)}</span>
+    </div>
+    <p class="text-gray-300 text-sm">${escHtml(data.text)}</p>`;
+    list.prepend(row);
+    document.getElementById('obs-texto').value = '';
+    showToast('Observação registrada!', 'success');
+}
+
+// ── Notas gerais ──────────────────────────────────────────────────
+function toggleNotas() {
+    const panel = document.getElementById('notas-panel');
+    const chev = document.getElementById('notas-chevron');
+    const hidden = panel.classList.toggle('hidden');
+    chev.textContent = hidden ? '▼ expandir' : '▲ recolher';
+}
+
+// ── Fila geral ────────────────────────────────────────────────────
+function toggleFila() {
+    const panel = document.getElementById('fila-panel');
+    const chev = document.getElementById('fila-chevron');
+    const hidden = panel.classList.toggle('hidden');
+    chev.textContent = hidden ? '▼ expandir' : '▲ recolher';
+    if (!hidden) {
+        // rola suavemente até a matéria atual
+        const atual = panel.querySelector('.bg-indigo-950\\/40');
+        if (atual) atual.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+async function salvarNotas() {
+    const notes = document.getElementById('notas-texto').value;
+    const data = await api(`/materias/${SUBJECT_PK}/notas/`, { notes });
+    const msg = document.getElementById('notas-msg');
+    if (data.status === 'ok') {
+        msg.classList.remove('hidden');
+        setTimeout(() => msg.classList.add('hidden'), 2500);
+    }
+}
+
+// ── Utilitários ───────────────────────────────────────────────────
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    updateTimerDisplay();
+    if (IS_ACTIVE && !isPaused) startTimer();
+});
+</script>
+{% endblock %}

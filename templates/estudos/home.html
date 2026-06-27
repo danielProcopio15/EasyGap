@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — EASYgap{% endblock %}
+
+{% block content %}
+
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-white">Dashboard</h1>
+    <p class="text-gray-500 mt-1 text-sm">{{ hoje }}</p>
+</div>
+
+<!-- Botões principais -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+    <a href="{% url 'agenda_diaria' %}" class="btn btn-primary text-center py-5 text-base rounded-xl col-span-2 sm:col-span-2">
+        📅 Iniciar Agenda do Dia
+    </a>
+    <a href="{% url 'materia_lista' %}" class="btn btn-ghost text-center py-5 text-base rounded-xl">
+        📚 Matérias
+    </a>
+    <a href="{% url 'produtividade' %}" class="btn btn-success text-center py-5 text-base rounded-xl">
+        📊 Produtividade
+    </a>
+</div>
+
+<!-- Cards rápidos -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Matérias ativas</p>
+        <p class="text-4xl font-bold text-indigo-400">{{ materias.count }}</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Sessões hoje</p>
+        <p class="text-4xl font-bold text-emerald-400">{{ sessoes_hoje.count }}</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Eficiência semanal</p>
+        {% if ultima_semana %}
+            <p class="text-4xl font-bold text-yellow-400">{{ ultima_semana.efficiency }}%</p>
+        {% else %}
+            <p class="text-gray-600 text-sm mt-3">Nenhum retrospecto ainda.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sessões de hoje -->
+<div>
+    <h2 class="text-lg font-semibold text-gray-200 mb-4">Sessões de hoje</h2>
+    {% if sessoes_hoje %}
+        <div class="overflow-x-auto rounded-xl border border-gray-800">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-900 text-gray-400 uppercase text-xs">
+                    <tr>
+                        <th class="px-5 py-3">Matéria</th>
+                        <th class="px-5 py-3">Início</th>
+                        <th class="px-5 py-3">Bruto (min)</th>
+                        <th class="px-5 py-3">Líquido (min)</th>
+                        <th class="px-5 py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for s in sessoes_hoje %}
+                    <tr class="hover:bg-gray-800 transition">
+                        <td class="px-5 py-3 font-medium text-white">{{ s.subject.name }}</td>
+                        <td class="px-5 py-3 text-gray-300">{{ s.started_at|time:"H:i" }}</td>
+                        <td class="px-5 py-3 text-gray-300">{{ s.gross_minutes }}</td>
+                        <td class="px-5 py-3 text-gray-300">{{ s.net_minutes }}</td>
+                        <td class="px-5 py-3 text-gray-300">{{ s.get_status_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-gray-600">Nenhuma sessão registrada hoje.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

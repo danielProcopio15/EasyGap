@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Produtividade — EASYgap{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-white">Dashboard de Produtividade</h1>
+    <a href="{% url 'home' %}" class="btn btn-ghost">← Início</a>
+</div>
+
+<!-- ── Métricas globais ── -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Tempo total</p>
+        <p class="text-3xl font-bold text-white">{{ total_gross }}</p>
+        <p class="text-xs text-gray-600 mt-1">minutos brutos</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Tempo líquido</p>
+        <p class="text-3xl font-bold text-indigo-400">{{ total_net }}</p>
+        <p class="text-xs text-gray-600 mt-1">minutos efetivos</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Eficiência geral</p>
+        <p class="text-3xl font-bold {% if eficiencia_geral >= 75 %}text-green-400{% elif eficiencia_geral >= 50 %}text-yellow-400{% else %}text-red-400{% endif %}">
+            {{ eficiencia_geral }}%
+        </p>
+        <p class="text-xs text-gray-600 mt-1">líquido / bruto</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Sequência</p>
+        <p class="text-3xl font-bold text-yellow-400">{{ streak }}</p>
+        <p class="text-xs text-gray-600 mt-1">dia{{ streak|pluralize:"s" }} consecutivo{{ streak|pluralize:"s" }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Pausas totais</p>
+        <p class="text-3xl font-bold text-yellow-400">{{ total_pausas }}</p>
+        <p class="text-xs text-gray-600 mt-1">interrupções</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Tempo pausado</p>
+        <p class="text-3xl font-bold text-yellow-400">{{ total_pause_min }}</p>
+        <p class="text-xs text-gray-600 mt-1">minutos</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Média por pausa</p>
+        <p class="text-3xl font-bold text-orange-400">{{ media_pausas_min }}</p>
+        <p class="text-xs text-gray-600 mt-1">minutos</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2">Índice procrastinação</p>
+        <p class="text-3xl font-bold {% if proc_index < 15 %}text-green-400{% elif proc_index < 35 %}text-yellow-400{% else %}text-red-400{% endif %}">
+            {{ proc_index }}%
+        </p>
+        <p class="text-xs text-gray-600 mt-1">pausas / bruto</p>
+    </div>
+</div>
+
+<!-- ── Destaques ── -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-3">Matéria mais estudada</p>
+        {% if materia_mais_estudada %}
+        <p class="text-white font-bold text-lg">{{ materia_mais_estudada.subject__name }}</p>
+        <p class="text-indigo-400 text-sm">{{ materia_mais_estudada.total }} min líquidos</p>
+        {% else %}
+        <p class="text-gray-600">Sem dados ainda</p>
+        {% endif %}
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-widest mb-3">Matéria com mais pausas</p>
+        {% if materia_mais_procrastinada %}
+        <p class="text-white font-bold text-lg">{{ materia_mais_procrastinada.subject__name }}</p>
+        <p class="text-yellow-400 text-sm">{{ materia_mais_procrastinada.total }} pausas · {{ materia_mais_procrastinada.total_min }} min</p>
+        {% else %}
+        <p class="text-gray-600">Sem dados ainda</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Progresso de metas diárias ── -->
+{% if progresso_metas %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-8">
+    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-5">Progresso de metas hoje</h2>
+    <div class="flex flex-col gap-4">
+        {% for pm in progresso_metas %}
+        <div>
+            <div class="flex justify-between text-sm mb-1">
+                <span class="text-white font-medium">{{ pm.materia.name }}</span>
+                <span class="text-gray-400">{{ pm.minutos_hoje }} / {{ pm.meta_minutos }} min</span>
+            </div>
+            <div class="bg-gray-800 rounded-full h-2 overflow-hidden">
+                <div class="h-2 rounded-full transition-all duration-500
+                    {% if pm.progresso >= 100 %}bg-green-500{% elif pm.progresso >= 50 %}bg-indigo-500{% else %}bg-gray-600{% endif %}"
+                    style="width: {{ pm.progresso }}%"></div>
+            </div>
+            <p class="text-right text-xs text-gray-600 mt-0.5">{{ pm.progresso }}%</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Tempo por matéria ── -->
+{% if tempo_por_materia %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-8">
+    <div class="px-5 py-4 border-b border-gray-800">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Tempo estudado por matéria</h2>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="text-xs text-gray-600 border-b border-gray-800">
+                <th class="text-left px-5 py-3 font-normal">Matéria</th>
+                <th class="text-right px-5 py-3 font-normal">Sessões</th>
+                <th class="text-right px-5 py-3 font-normal">Bruto (min)</th>
+                <th class="text-right px-5 py-3 font-normal">Líquido (min)</th>
+                <th class="text-right px-5 py-3 font-normal">Eficiência</th>
+            </tr></thead>
+            <tbody>
+            {% for t in tempo_por_materia %}
+            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                <td class="px-5 py-3 text-white font-medium">{{ t.subject__name }}</td>
+                <td class="px-5 py-3 text-right text-gray-400">{{ t.sessoes_count }}</td>
+                <td class="px-5 py-3 text-right text-gray-400">{{ t.minutos_gross }}</td>
+                <td class="px-5 py-3 text-right text-indigo-400 font-semibold">{{ t.minutos_net }}</td>
+                <td class="px-5 py-3 text-right">
+                    {% if t.minutos_gross %}
+                    {% widthratio t.minutos_net t.minutos_gross 100 as eff %}
+                    <span class="{% if eff >= 75 %}text-green-400{% elif eff >= 50 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                        {{ eff }}%
+                    </span>
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Horários mais produtivos ── -->
+{% if horarios %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-8">
+    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-5">Horários mais produtivos</h2>
+    <div class="flex flex-col gap-3">
+        {% for h in horarios %}
+        <div class="flex items-center gap-4">
+            <span class="text-gray-400 text-sm w-14 flex-shrink-0">{{ h.hora }}h–{{ h.hora|add:1 }}h</span>
+            <div class="flex-1 bg-gray-800 rounded-full h-2 overflow-hidden">
+                <div class="h-2 bg-indigo-500 rounded-full"
+                     style="width: {% widthratio h.total_net horarios.0.total_net 100 %}%"></div>
+            </div>
+            <span class="text-indigo-400 text-sm w-20 text-right flex-shrink-0">{{ h.total_net }} min</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Pausas por matéria ── -->
+{% if pausas_por_materia %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-8">
+    <div class="px-5 py-4 border-b border-gray-800">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Relatório de pausas por matéria</h2>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="text-xs text-gray-600 border-b border-gray-800">
+                <th class="text-left px-5 py-3 font-normal">Matéria</th>
+                <th class="text-right px-5 py-3 font-normal">Pausas</th>
+                <th class="text-right px-5 py-3 font-normal">Total (min)</th>
+            </tr></thead>
+            <tbody>
+            {% for p in pausas_por_materia %}
+            <tr class="border-b border-gray-800/50">
+                <td class="px-5 py-3 text-white">{{ p.subject__name }}</td>
+                <td class="px-5 py-3 text-right text-yellow-400">{{ p.total }}</td>
+                <td class="px-5 py-3 text-right text-gray-400">{{ p.total_min }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Conteúdos recentes ── -->
+{% if conteudos_recentes %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-8">
+    <div class="px-5 py-4 border-b border-gray-800">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Histórico de conteúdos estudados</h2>
+    </div>
+    <div class="divide-y divide-gray-800/60">
+    {% for c in conteudos_recentes %}
+    <div class="px-5 py-3 flex items-center justify-between">
+        <div>
+            <p class="text-white text-sm">{{ c.description }}</p>
+            <p class="text-gray-500 text-xs">{{ c.subject.name }} · {{ c.date|date:"d/m/Y" }}</p>
+        </div>
+        {% if c.minutes_spent %}
+        <span class="text-indigo-400 text-xs flex-shrink-0">{{ c.minutes_spent }} min</span>
+        {% endif %}
+    </div>
+    {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Métricas semanais / mensais ── -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+{% if ultima_semana %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Última semana</h2>
+    <div class="grid grid-cols-2 gap-3 text-center">
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Total min</p>
+            <p class="font-bold text-white">{{ ultima_semana.total_minutes }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Líquido</p>
+            <p class="font-bold text-indigo-400">{{ ultima_semana.net_minutes }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Eficiência</p>
+            <p class="font-bold text-green-400">{{ ultima_semana.efficiency }}%</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Dias estudados</p>
+            <p class="font-bold text-white">{{ ultima_semana.study_days }}</p>
+        </div>
+    </div>
+    {% if ultima_semana.most_studied_subject %}
+    <p class="text-xs text-gray-600 mt-3">Mais estudada: <span class="text-white">{{ ultima_semana.most_studied_subject }}</span></p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if ultimo_mes %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Último mês</h2>
+    <div class="grid grid-cols-2 gap-3 text-center">
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Total min</p>
+            <p class="font-bold text-white">{{ ultimo_mes.total_minutes }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Líquido</p>
+            <p class="font-bold text-indigo-400">{{ ultimo_mes.net_minutes }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Eficiência</p>
+            <p class="font-bold text-green-400">{{ ultimo_mes.efficiency }}%</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-600 mb-1">Metas atingidas</p>
+            <p class="font-bold text-yellow-400">{{ ultimo_mes.goals_hit }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+</div>
+
+{% endblock %}

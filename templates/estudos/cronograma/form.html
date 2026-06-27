@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — EASYgap{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-white">{{ titulo }}</h1>
+    <a href="{% url 'cronograma_lista' %}" class="btn btn-ghost">← Voltar</a>
+</div>
+
+<form method="post" class="max-w-4xl" id="cronograma-form">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <!-- Dados gerais -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">Dados gerais</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {% for field in form %}
+            <div>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <p class="text-red-400 text-xs mt-1">{{ field.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Dias da semana -->
+    {% for day_num, day_name, day_forms in days_with_forms %}
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-white text-base">{{ day_name }}</h2>
+            <button type="button"
+                    onclick="addItem({{ day_num }})"
+                    class="btn btn-ghost text-xs px-3 py-1">
+                + Adicionar matéria
+            </button>
+        </div>
+
+        <div id="day-{{ day_num }}" class="flex flex-col gap-3">
+            {% for f in day_forms %}
+            <div class="item-row bg-gray-800 border border-gray-700 rounded-lg p-3 flex flex-wrap items-end gap-3" data-day="{{ day_num }}">
+                {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                <div class="flex-1 min-w-40">
+                    <label>Matéria</label>
+                    {{ f.subject }}
+                    {% if f.subject.errors %}<p class="text-red-400 text-xs mt-1">{{ f.subject.errors|join:", " }}</p>{% endif %}
+                </div>
+                <div class="w-28">
+                    <label>Tempo (min)</label>
+                    {{ f.planned_minutes }}
+                </div>
+                <div class="w-28">
+                    <label>Horário</label>
+                    {{ f.scheduled_time }}
+                </div>
+                <div class="flex items-center gap-1 pb-1">
+                    {{ f.DELETE }}
+                    <label for="{{ f.DELETE.id_for_label }}" class="text-red-400 text-xs cursor-pointer" style="text-transform:none;letter-spacing:0">Remover</label>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="flex gap-3 mt-6">
+        <button type="submit" class="btn btn-primary">Salvar cronograma</button>
+        <a href="{% url 'cronograma_lista' %}" class="btn btn-ghost">Cancelar</a>
+    </div>
+</form>
+
+<!-- Template vazio para clonagem via JS -->
+<div id="empty-form-tpl" style="display:none">
+    <div class="item-row bg-gray-800 border border-gray-700 rounded-lg p-3 flex flex-wrap items-end gap-3">
+        {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+        <div class="flex-1 min-w-40">
+            <label>Matéria</label>
+            {{ formset.empty_form.subject }}
+        </div>
+        <div class="w-28">
+            <label>Tempo (min)</label>
+            {{ formset.empty_form.planned_minutes }}
+        </div>
+        <div class="w-28">
+            <label>Horário</label>
+            {{ formset.empty_form.scheduled_time }}
+        </div>
+        <div class="flex items-center gap-1 pb-1">
+            {{ formset.empty_form.DELETE }}
+            <label for="{{ formset.empty_form.DELETE.id_for_label }}" class="text-red-400 text-xs cursor-pointer" style="text-transform:none;letter-spacing:0">Remover</label>
+        </div>
+    </div>
+</div>
+
+<script>
+function addItem(dayNum) {
+    const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+    const idx = parseInt(totalFormsInput.value);
+
+    // Clona o template vazio e substitui __prefix__ pelo índice atual
+    let html = document.getElementById('empty-form-tpl').innerHTML
+                       .replace(/__prefix__/g, idx);
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html.trim();
+    const row = wrapper.firstElementChild;
+
+    // Define o dia da semana no campo oculto
+    const dayInput = row.querySelector('input[name$="-day_of_week"]');
+    if (dayInput) dayInput.value = dayNum;
+
+    // Define ordem = quantidade atual de itens neste dia + 1
+    const container = document.getElementById('day-' + dayNum);
+    const count = container.querySelectorAll('.item-row').length;
+    const orderInput = row.querySelector('input[name$="-order"]');
+    if (orderInput) orderInput.value = count + 1;
+
+    container.appendChild(row);
+    totalFormsInput.value = idx + 1;
+}
+</script>
+
+{% endblock %}
+

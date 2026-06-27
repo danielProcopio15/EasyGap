@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — EASYgap{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-white">{{ titulo }}</h1>
+    <a href="{% url 'materia_lista' %}" class="btn btn-ghost">← Voltar</a>
+</div>
+
+<form method="post" class="max-w-2xl">
+    {% csrf_token %}
+
+    <!-- ★ CERTAMES — seção de destaque no topo -->
+    <div class="bg-gradient-to-r from-yellow-950/80 to-amber-950/60 border border-yellow-700/60 rounded-xl p-5 mb-5 shadow-lg">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-yellow-400 text-lg">🏆</span>
+            <p class="text-yellow-300 font-bold text-sm uppercase tracking-widest">Certames</p>
+        </div>
+        <label for="{{ form.certames.id_for_label }}" class="text-yellow-200/70 text-xs uppercase tracking-wider mb-1 block">
+            Concursos vinculados a esta matéria
+        </label>
+        <textarea id="{{ form.certames.id_for_label }}" name="certames"
+                  rows="3"
+                  placeholder="Um concurso por linha&#10;Ex: TJSP 2026&#10;PCDF 2026"
+                  class="block w-full bg-yellow-950/60 text-yellow-100 border border-yellow-700/50 rounded-lg px-3 py-2 text-sm outline-none focus:border-yellow-400 placeholder-yellow-700 resize-none">{{ form.certames.value|default_if_none:'' }}</textarea>
+        {% if form.certames.errors %}
+        <p class="text-red-400 text-xs mt-1">{{ form.certames.errors|join:", " }}</p>
+        {% endif %}
+        <p class="text-yellow-700 text-xs mt-2">Digite um concurso por linha. Eles aparecem em destaque durante a sessão de estudo.</p>
+    </div>
+
+    <!-- Campos gerais -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {% for field in form %}
+            {% if field.name == 'has_discursiva' or field.name == 'has_oral' or field.name == 'certames' %}
+            {# rendered separately #}
+            {% else %}
+            <div class="{% if field.name == 'description' or field.name == 'notes' %}sm:col-span-2{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <p class="text-red-400 text-xs mt-1">{{ field.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+    <!-- TIPO DE PROVA: Discursiva e Oral -->
+    <div class="mt-6 border-t border-gray-800 pt-5">
+        <p class="text-xs text-gray-400 uppercase tracking-widest mb-3 font-semibold">Tipo de prova</p>
+        <div class="grid grid-cols-2 gap-4">
+
+            <!-- Discursiva -->
+            <div>
+                <p class="text-xs text-gray-400 uppercase tracking-wider mb-2">Discursiva</p>
+                <input type="hidden" name="has_discursiva" id="hid_has_discursiva"
+                       value="{% if form.has_discursiva.value %}on{% endif %}">
+                <div class="flex gap-2">
+                    <button type="button" onclick="setBool('has_discursiva', true)"
+                            id="btn_has_discursiva_sim"
+                            class="flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-all
+                                   {% if form.has_discursiva.value %}bg-indigo-600 border-indigo-500 text-white{% else %}bg-gray-800 border-gray-700 text-gray-400{% endif %}">
+                        Sim
+                    </button>
+                    <button type="button" onclick="setBool('has_discursiva', false)"
+                            id="btn_has_discursiva_nao"
+                            class="flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-all
+                                   {% if not form.has_discursiva.value %}bg-gray-700 border-gray-600 text-gray-200{% else %}bg-gray-800 border-gray-700 text-gray-400{% endif %}">
+                        Não
+                    </button>
+                </div>
+            </div>
+
+            <!-- Oral -->
+            <div>
+                <p class="text-xs text-gray-400 uppercase tracking-wider mb-2">Oral</p>
+                <input type="hidden" name="has_oral" id="hid_has_oral"
+                       value="{% if form.has_oral.value %}on{% endif %}">
+                <div class="flex gap-2">
+                    <button type="button" onclick="setBool('has_oral', true)"
+                            id="btn_has_oral_sim"
+                            class="flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-all
+                                   {% if form.has_oral.value %}bg-indigo-600 border-indigo-500 text-white{% else %}bg-gray-800 border-gray-700 text-gray-400{% endif %}">
+                        Sim
+                    </button>
+                    <button type="button" onclick="setBool('has_oral', false)"
+                            id="btn_has_oral_nao"
+                            class="flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-all
+                                   {% if not form.has_oral.value %}bg-gray-700 border-gray-600 text-gray-200{% else %}bg-gray-800 border-gray-700 text-gray-400{% endif %}">
+                        Não
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    </div>{# /bg-gray-900 card #}
+
+    <div class="flex gap-3 mt-6">
+        <button type="submit" class="btn btn-primary">Salvar</button>
+        <a href="{% url 'materia_lista' %}" class="btn btn-ghost">Cancelar</a>
+    </div>
+</form>
+
+<script>
+// Sync radio visual state and hidden checkbox on toggle
+document.querySelectorAll('input[type="radio"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        var group = this.name; // e.g. 'has_discursiva_radio'
+        var isYes = this.value === '1';
+
+        // Find both spans in this group
+        var labels = document.querySelectorAll('input[name="' + group + '"]');
+        labels.forEach(function(r) {
+            var span = r.nextElementSibling;
+            var isSim = r.value === '1';
+            if (r.checked && isSim) {
+                span.className = span.className.replace(/bg-gray-800 border-gray-700 text-gray-400|bg-gray-700 border-gray-600 text-gray-200/g, '').trim();
+                span.classList.add('bg-indigo-600', 'border-indigo-500', 'text-white');
+            } else if (r.checked && !isSim) {
+                span.className = span.className.replace(/bg-indigo-600 border-indigo-500 text-white|bg-gray-800 border-gray-700 text-gray-400/g, '').trim();
+                span.classList.add('bg-gray-700', 'border-gray-600', 'text-gray-200');
+            } else if (!r.checked && isSim) {
+                span.className = span.className.replace(/bg-indigo-600 border-indigo-500 text-white/g, '').trim();
+                span.classList.add('bg-gray-800', 'border-gray-700', 'text-gray-400');
+            } else {
+                span.className = span.className.replace(/bg-gray-700 border-gray-600 text-gray-200/g, '').trim();
+                span.classList.add('bg-gray-800', 'border-gray-700', 'text-gray-400');
+            }
+        });
+    });
+});
+</script>
+
+<script>
+function setBool(field, value) {
+    document.getElementById('hid_' + field).value = value ? 'on' : '';
+
+    var simBtn = document.getElementById('btn_' + field + '_sim');
+    var naoBtn = document.getElementById('btn_' + field + '_nao');
+
+    if (value) {
+        simBtn.className = simBtn.className.replace('bg-gray-800 border-gray-700 text-gray-400', 'bg-indigo-600 border-indigo-500 text-white');
+        naoBtn.className = naoBtn.className.replace('bg-gray-700 border-gray-600 text-gray-200', 'bg-gray-800 border-gray-700 text-gray-400');
+    } else {
+        naoBtn.className = naoBtn.className.replace('bg-gray-800 border-gray-700 text-gray-400', 'bg-gray-700 border-gray-600 text-gray-200');
+        simBtn.className = simBtn.className.replace('bg-indigo-600 border-indigo-500 text-white', 'bg-gray-800 border-gray-700 text-gray-400');
+    }
+}
+</script>
+{% endblock %}
